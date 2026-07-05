@@ -1,0 +1,8 @@
+node_modules/
+master.key
+sessions.json
+*.log
+.env
+shellcode/*.bin
+shellcode/*.raw
+shellcode/memory/

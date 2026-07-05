@@ -1,0 +1,12 @@
+{
+  "name": "rogue-sandbox",
+  "version": "2.0.0",
+  "description": "Browser-based PE injection via File System Access API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
