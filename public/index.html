@@ -31,7 +31,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 120%; }
+html { font-size: 100%; }
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   background: var(--bg);
@@ -41,13 +41,14 @@ body {
 }
 
 /* ── State system ──────────────────────────────────────────────────────── */
-.state { position: fixed; inset: 0; display: none; flex-direction: column; }
+.state { position: fixed; inset: 0; display: none; flex-direction: column; animation: fadeIn .3s ease; }
 .state.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ── Logo ──────────────────────────────────────────────────────────────── */
-.logo { display: flex; align-items: center; gap: .45rem; }
-.logo-name { font-size: .88rem; font-weight: 800; color: var(--text1); letter-spacing: .03em; }
-.logo-ver  { font-size: .6rem; color: var(--text3); font-family: 'IBM Plex Mono', monospace; margin-left: .05rem; }
+.logo { display: flex; align-items: center; gap: .5rem; }
+.logo-name { font-size: 1rem; font-weight: 800; color: var(--text1); letter-spacing: .02em; }
+.logo-ver  { font-size: .65rem; color: var(--text3); font-family: 'IBM Plex Mono', monospace; margin-left: .05rem; }
 
 /* ── Toast ─────────────────────────────────────────────────────────────── */
 #toast {
@@ -86,25 +87,26 @@ body {
 /* Topnav */
 .topnav {
   position: relative; z-index: 10;
-  height: 52px; background: var(--surface);
+  height: 56px; background: var(--surface);
   border-bottom: 1px solid var(--o-bdr);
   display: flex; align-items: center;
-  padding: 0 1.4rem; gap: 1rem; flex-shrink: 0;
+  padding: 0 1.6rem; gap: 1rem; flex-shrink: 0;
+  backdrop-filter: blur(8px);
 }
 .topnav-left   { display: flex; align-items: center; gap: .5rem; }
 .topnav-center { flex: 1; display: flex; align-items: center; justify-content: center; }
 .topnav-right  { display: flex; align-items: center; gap: .5rem; }
 
 .badge-enterprise {
-  padding: .26rem .8rem; border-radius: 2rem;
-  font-size: .58rem; font-weight: 700;
-  letter-spacing: .12em; text-transform: uppercase;
+  padding: .3rem .9rem; border-radius: 2rem;
+  font-size: .65rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
   background: var(--o-dim); border: 1px solid var(--o-bdr);
   color: var(--orange1);
 }
 .badge-active {
-  padding: .2rem .6rem; border-radius: .3rem;
-  font-size: .62rem; font-weight: 600;
+  padding: .25rem .7rem; border-radius: .35rem;
+  font-size: .68rem; font-weight: 600;
   font-family: 'IBM Plex Mono', monospace;
   background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25);
   color: #86efac;
@@ -120,12 +122,12 @@ body {
 
 /* Main card */
 .main-card {
-  width: 100%; max-width: 580px;
+  width: 100%; max-width: 600px;
   background: var(--surface);
   border: 1px solid var(--o-bdr);
   border-left: 3px solid var(--orange2);
   border-radius: 1rem; overflow: hidden;
-  box-shadow: 0 0 40px rgba(249,115,22,.05), 0 4px 32px rgba(0,0,0,.6);
+  box-shadow: 0 0 60px rgba(249,115,22,.06), 0 8px 40px rgba(0,0,0,.5);
 }
 
 .card-head {
@@ -140,8 +142,8 @@ body {
   border-radius: .5rem; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.card-head-text h2  { font-size: .92rem; font-weight: 700; color: var(--text1); }
-.card-head-text p   { font-size: .7rem; color: var(--text3); margin-top: .15rem; }
+.card-head-text h2  { font-size: 1.05rem; font-weight: 700; color: var(--text1); }
+.card-head-text p   { font-size: .78rem; color: var(--text3); margin-top: .15rem; }
 
 .card-body { padding: 1.2rem; }
 
@@ -182,20 +184,20 @@ body {
   background: var(--surface2);
   border: 1px solid rgba(255,255,255,.06);
   border-left: 3px solid var(--o-bdr);
-  border-radius: .65rem;
-  padding: .9rem .85rem;
+  border-radius: .7rem;
+  padding: 1rem .95rem;
   cursor: pointer;
-  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+  transition: border-color .2s, background .2s, box-shadow .2s, transform .12s;
   display: flex; flex-direction: column;
-  gap: .5rem; user-select: none;
+  gap: .55rem; user-select: none;
 }
 .method-card:hover {
   border-color: var(--o-bdr2);
   border-left-color: var(--orange1);
   background: rgba(249,115,22,.04);
-  box-shadow: 0 0 0 1px rgba(249,115,22,.10) inset;
+  box-shadow: 0 0 0 1px rgba(249,115,22,.10) inset, 0 4px 16px rgba(249,115,22,.06);
 }
-.method-card:active { transform: scale(.97); }
+.method-card:active { transform: scale(.96); }
 
 
 .method-icon {
@@ -205,8 +207,8 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.method-card h3 { font-size: .78rem; font-weight: 700; color: var(--text1); }
-.method-card p  { font-size: .65rem; color: var(--text3); line-height: 1.4; }
+.method-card h3 { font-size: .88rem; font-weight: 700; color: var(--text1); }
+.method-card p  { font-size: .72rem; color: var(--text3); line-height: 1.5; }
 
 /* Drop zone drag-over: light up orange */
 #drop-card.drag-over {
@@ -223,8 +225,9 @@ body {
 
 /* Status bar */
 .status-bar {
-  text-align: center; font-size: .6rem;
+  text-align: center; font-size: .7rem;
   color: var(--text3); letter-spacing: .015em;
+  padding-top: .3rem;
 }
 
 
@@ -276,13 +279,13 @@ body {
 
 .proc-text { text-align: center; display: flex; flex-direction: column; gap: .45rem; }
 #proc-status {
-  font-size: .9rem; font-weight: 700; color: var(--text1);
+  font-size: 1rem; font-weight: 700; color: var(--text1);
   font-family: 'IBM Plex Mono', monospace; letter-spacing: .01em;
 }
 #proc-filename {
-  font-size: .72rem; color: var(--text3);
+  font-size: .8rem; color: var(--text3);
   font-family: 'IBM Plex Mono', monospace;
-  max-width: 360px; overflow: hidden;
+  max-width: 400px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -320,8 +323,8 @@ body {
   margin: 0 auto 1.1rem;
   box-shadow: 0 0 24px rgba(34,197,94,.18);
 }
-.done-headline { font-size: 1.5rem; font-weight: 800; color: var(--text1); letter-spacing: .02em; margin-bottom: .35rem; }
-.done-subhead  { font-size: .78rem; color: var(--text2); margin-bottom: 1.3rem; }
+.done-headline { font-size: 1.6rem; font-weight: 800; color: var(--text1); letter-spacing: .01em; margin-bottom: .4rem; }
+.done-subhead  { font-size: .85rem; color: var(--text2); margin-bottom: 1.4rem; }
 
 .done-stats-grid {
   display: grid; grid-template-columns: 1fr 1fr;
@@ -355,6 +358,40 @@ body {
 }
 .rescan-link:hover { color: var(--orange1); }
 
+/* ── Threat/Decode shared styles ──────────────────────────────────────── */
+.threat-badge {
+  display: inline-block;
+  padding: .35rem 1rem; border-radius: 2rem;
+  font-size: .72rem; font-weight: 700;
+  letter-spacing: .04em;
+  border: 1px solid;
+  margin-bottom: .7rem;
+}
+.threat-subhead {
+  font-size: .76rem; color: var(--text2);
+  line-height: 1.6; margin-bottom: 1.2rem;
+  max-width: 380px; margin-left: auto; margin-right: auto;
+}
+.threat-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: .55rem; margin-bottom: 1.1rem;
+}
+.threat-stat {
+  background: var(--surface2); border: 1px solid rgba(255,255,255,.05);
+  border-radius: .55rem; padding: .7rem .65rem;
+  text-align: left;
+}
+.threat-stat-lbl {
+  font-size: .58rem; color: var(--text3); display: block;
+  margin-bottom: .25rem; text-transform: uppercase;
+  letter-spacing: .08em; font-weight: 600;
+}
+.threat-stat-val {
+  font-size: .74rem; font-weight: 600; color: var(--text1);
+  font-family: 'IBM Plex Mono', monospace;
+  word-break: break-all; display: block;
+}
+.threat-stat-val.danger { color: var(--red); text-decoration: line-through; opacity: .7; }
 
 /* ═══════════════════════════════════════════════════════════
    DECODE (safe-ext bypass)
@@ -551,12 +588,6 @@ body {
 </div><!-- /#processing -->
 
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     STATE 3 - VT RESULT
-     ═══════════════════════════════════════════════════════════════════════════ -->
-
-
-<!-- ═══════════════════════════════════════════════════════════════════════════
 <!-- ═══════════════════════════════════════════════════════════════════════════
      STATE 5 - DECODE (safe-ext bypass: .cleaned file written, victim renames)
      ═══════════════════════════════════════════════════════════════════════════ -->
